@@ -1,0 +1,13 @@
+{
+  "dependencies": [
+    ".",
+    "langgraph",
+    "langgraph-swarm",
+    "langchain-google-genai",
+    "python-dotenv"
+  ],
+  "graphs": {
+    "daily_reflection_agent": "src/fastapi_template/agents.py:app"
+  },
+  "env": "./.env"
+}

@@ -2,28 +2,31 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
 from langgraph_swarm import create_handoff_tool, create_swarm
 from langgraph.checkpoint.memory import InMemorySaver
-
+from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver, MongoDBCheckpointer
 
 from dotenv import load_dotenv
+import os
 
 from prompts import action_prompt, encouragement_prompt, insight_prompt, daily_reflection_prompt
 from handoffs import to_insight, to_action, to_encouragement
 
-import os
-
-# initialize checkpointer
-
-
-
+# Load environment variables first
 load_dotenv()
+
+# Get the MongoDB URI from the environment variables
+mongodb_uri = os.getenv("MONGODB_URI")
 
 # Get the Gemini API key from the environment variables
 gemini_api_key = os.getenv("GOOGLE_API_KEY")
 
+# Initialize checkpointer with the URI from .env
+checkpointer = MongoDBCheckpointer(
+    mongo_uri=mongodb_uri,
+    database_name="langgraph_checkpoints",
+    collection_name="checkpoints"  # or whatever name you prefer
+)
+
 model = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_api_key)
-
-checkpointer = InMemorySaver()
-
 
 reflecty = create_react_agent(
     model = model,
@@ -53,22 +56,30 @@ encouragement = create_react_agent(
     name = "encouragement"
 )
 
-workflow = create_swarm(
-    [encouragement, action, insight, reflecty],
-    default_active_agent="reflecty",
-)
-app = workflow.compile(checkpointer=checkpointer)
-
-config = {"configurable": {"thread_id": "1"}}
-
-
-turn_1 = app.invoke(
-    {"messages": [{"role": "user", "content": "i'd like to start my daily reflection"}]},
-    config,
+# Create the swarm agent
+agent = create_swarm(
+    [encouragement, reflecty, insight, action],
+    default_active_agent="reflecty"
 )
 
+# Compile the agent with the checkpointer
+app = agent.compile(checkpointer=checkpointer)
 
+# config = {"configurable": {"thread_id": "1"}}
 
+# Example of how to use the agent asynchronously
+import asyncio
+
+async def run_agent_with_checkpointer(input_text: str, thread_id: str):
+    """
+    Run the agent with proper checkpointing
+    """
+    config = {"configurable": {"thread_id": thread_id}}
+    result = await app.ainvoke({"input": input_text}, config)
+    return result
+
+# Example usage (commented out)
+# asyncio.run(run_agent_with_checkpointer("What should I reflect on today?"))
 
 
 
