@@ -20,10 +20,10 @@ mongodb_uri = os.getenv("MONGODB_URI")
 gemini_api_key = os.getenv("GOOGLE_API_KEY")
 
 # Initialize checkpointer with the URI from .env
-checkpointer = MongoDBCheckpointer(
-    mongo_uri=mongodb_uri,
-    database_name="langgraph_checkpoints",
-    collection_name="checkpoints"  # or whatever name you prefer
+checkpointer = MongoDBSaver.from_conn_string(
+    mongodb_uri,
+    database="langgraph_checkpoints",
+    collection="checkpoints"
 )
 
 model = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_api_key)
@@ -68,14 +68,12 @@ app = agent.compile(checkpointer=checkpointer)
 # config = {"configurable": {"thread_id": "1"}}
 
 # Example of how to use the agent asynchronously
-import asyncio
-
-async def run_agent_with_checkpointer(input_text: str, thread_id: str):
+def run_agent_with_checkpointer(input_text: str, thread_id: str):
     """
-    Run the agent with proper checkpointing
+    Run the agent with proper checkpointing using the synchronous invoke method.
     """
     config = {"configurable": {"thread_id": thread_id}}
-    result = await app.ainvoke({"input": input_text}, config)
+    result = app.invoke({"input": input_text}, config)
     return result
 
 # Example usage (commented out)
