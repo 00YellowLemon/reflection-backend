@@ -2,7 +2,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
 from langgraph_swarm import create_handoff_tool, create_swarm
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver, MongoDBCheckpointer
+from langgraph.checkpoint.mongodb import  MongoDBSaver
 
 from dotenv import load_dotenv
 import os
