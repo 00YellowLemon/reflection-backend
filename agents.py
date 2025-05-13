@@ -1,8 +1,6 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
-from langgraph_swarm import create_handoff_tool, create_swarm
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.checkpoint.mongodb import  MongoDBSaver
+from langgraph_swarm import create_swarm
 
 from dotenv import load_dotenv
 import os
@@ -13,18 +11,8 @@ from handoffs import to_insight, to_action, to_encouragement
 # Load environment variables first
 load_dotenv()
 
-# Get the MongoDB URI from the environment variables
-mongodb_uri = os.getenv("MONGODB_URI")
-
 # Get the Gemini API key from the environment variables
 gemini_api_key = os.getenv("GOOGLE_API_KEY")
-
-# Initialize checkpointer with the URI from .env
-checkpointer = MongoDBSaver.from_conn_string(
-    mongodb_uri,
-    database="langgraph_checkpoints",
-    collection="checkpoints"
-)
 
 model = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_api_key)
 
@@ -56,28 +44,36 @@ encouragement = create_react_agent(
     name = "encouragement"
 )
 
-# Create the swarm agent
-agent = create_swarm(
+# Create the swarm agent (uncompiled)
+# This will be compiled in main.py using the checkpointer
+raw_agent = create_swarm(
     [encouragement, reflecty, insight, action],
     default_active_agent="reflecty"
 )
 
-# Compile the agent with the checkpointer
-app = agent.compile(checkpointer=checkpointer)
+# Global variable to hold the compiled app instance
+_compiled_app_instance = None
 
-# config = {"configurable": {"thread_id": "1"}}
+def set_compiled_app(compiled_app):
+    global _compiled_app_instance
+    _compiled_app_instance = compiled_app
+
+def get_compiled_app():
+    if _compiled_app_instance is None:
+        raise RuntimeError("Compiled app not initialized. Ensure main.py lifespan sets it.")
+    return _compiled_app_instance
 
 # Example of how to use the agent asynchronously
-def run_agent_with_checkpointer(input_text: str, thread_id: str):
+async def run_agent_with_checkpointer(input_text: str, thread_id: str): # Made async
     """
     Run the agent with proper checkpointing using the synchronous invoke method.
     """
+    compiled_app = get_compiled_app()
     config = {"configurable": {"thread_id": thread_id}}
-    result = app.invoke({"input": input_text}, config)
+    # If compiled_app.invoke is synchronous, FastAPI runs it in a threadpool.
+    # If an async version like compiled_app.ainvoke exists, prefer that.
+    result = compiled_app.invoke({"input": input_text}, config)
     return result
-
-# Example usage (commented out)
-# asyncio.run(run_agent_with_checkpointer("What should I reflect on today?"))
 
 
 
