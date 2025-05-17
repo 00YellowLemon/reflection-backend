@@ -96,3 +96,10 @@ def invoke_agent_endpoint(request: AgentRequest) -> dict:  # Changed to sync
     except Exception as e:
         logging.error("Error occurred in invoke_agent_endpoint", exc_info=True)
         return {"error": "An unexpected error occurred. Please check the logs for details."}
+
+# Ensure the app binds to 0.0.0.0 and uses the PORT environment variable
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.getenv("PORT", 8000))  # Default to port 8000 if PORT is not set
+    uvicorn.run(app, host="0.0.0.0", port=port)
